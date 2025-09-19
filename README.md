@@ -51,7 +51,7 @@ unzip sim_assets/meshes.zip -d sim_assets/
 Unzip this into `sim_assets/` as well:
 
 ```bash
-unzip <downloaded_file>.zip -d sim_assets/
+unzip aldbedo_textures.zip -d sim_assets/
 ```
 
 ---
