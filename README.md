@@ -32,7 +32,7 @@ Four_Wheels_Steering_bot/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your_username>/Four_Wheels_Steering_bot.git
+git clone https://github.com/Avg2006/Four_Wheels_Steering_bot.git
 cd Four_Wheels_Steering_bot
 ```
 
