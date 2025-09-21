@@ -1,16 +1,16 @@
-# Four_Wheels_Steering_bot (Isaac Sim)
+# Four_Wheels_Steering_bot (Isaac Sim + ROS2)
 
 ## Overview
-High-fidelity 4-wheel steering rover simulation in Isaac Sim with ROS2 integration.
+High-fidelity 4-wheel steering rover simulation in Isaac Sim with ROS2 integration.  
 Features include:
 
 - Encoder support for steering
 - LiDAR, IMU, GPS, and RGBD stereo cameras
 - ROS2 communication bridge
 - Bare-metal simulation ready to run out-of-the-box
+- ROS2 workspace with autonomous, control, GPS, and utility controllers for rover navigation and motion control
 
-This repository contains the **bare-metal simulation** (`sim.usd`) and small assets required to run it.
-Optional enhanced environment shaders and textures are available separately.
+This repository contains the **bare-metal simulation** (`sim.usd`) and required assets. Optional enhanced environment shaders and textures are available separately.
 
 ---
 
@@ -22,7 +22,22 @@ Four_Wheels_Steering_bot/
 │  └─ meshes.zip
 ├─ sim.usd           # Bare-metal USD file of the rover
 ├─ LICENSE
-└─ README.md
+├─ README.md
+└─ Example_ros2_ws/  # ROS2 workspace for controlling and simulating the rover
+```
+
+**Inside `Example_ros2_ws/` (ROS2 workspace):**
+
+```
+Example_ros2_ws/
+├─ src/
+│  ├─ autonomous/   # Go-to-goal and path planning nodes
+│  ├─ control2/     # Master control node (steering, throttle, etc.)
+│  ├─ controller/   # Utility controllers for motor/PID
+│  └─ gps/          # GPS processing and odometry conversion
+├─ build/           # Colcon build artifacts
+├─ install/         # Colcon install workspace
+└─ log/             # Build logs
 ```
 
 ---
@@ -38,54 +53,97 @@ cd Four_Wheels_Steering_bot
 
 ### 2. Prepare assets
 
-1. Unzip the mandatory meshes:
-
 ```bash
 unzip sim_assets/meshes.zip -d sim_assets/
 ```
 
-2. (Optional) Download additional environment shaders and ground assets:
+Optional: Add environment shaders/textures to `sim_assets/` for better visuals.
 
-[Google Drive Link](https://drive.google.com/file/d/1K6RV3u_LgPo8qWWvxvkTqgR6eYvJ_b-i/view?usp=sharing)
+---
 
-Unzip this into `sim_assets/` as well:
+### 3. ROS2 Workspace Setup
+
+1. Source ROS2 Humble:
 
 ```bash
-unzip aldbedo_textures.zip -d sim_assets/
+source /opt/ros/humble/setup.bash
+```
+
+2. Navigate to your ROS2 workspace:
+
+```bash
+cd Example_ros2_ws
+```
+
+3. Build the workspace using `colcon`:
+
+```bash
+colcon build
+```
+
+4. Source the local workspace:
+
+```bash
+source install/setup.bash
 ```
 
 ---
 
-### 3. ROS2 Integration
+### 4. ROS2 Bridge Setup
 
-1. Start the **ROS2 bridge** in Isaac Sim and set the **Domain ID** to `5`.
-2. In every other terminal where you want to access ROS2 topics:
+Configure the ROS2 bridge environment before running Isaac Sim:
 
 ```bash
+export ROS_DISTRO=humble && \
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp && \
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/avg/isaacsim/exts/isaacsim.ros2.bridge/humble/lib && \
 export ROS_DOMAIN_ID=5
 ```
 
-3. You can now inspect topics using:
+> **Note:** Adjust the `LD_LIBRARY_PATH` if Isaac Sim is installed in a different location.  
+> Example above assumes installation in `~/isaacsim`.
+
+---
+
+### 5. Launch Isaac Sim
 
 ```bash
+cd ~/isaacsim && ./isaac-sim.sh
+```
+
+Check ROS2 topics in a separate terminal:
+
+```bash
+ros2 topic list
 ros2 topic echo <topic_name>
 ```
 
 ---
 
-## ROS2 Topics
+### 6. ROS2 Packages & Nodes
+
+| Package      | Node / Launch               | Description |
+|-------------|----------------------------|-------------|
+| `autonomous` | `go_to_goal.py`             | Autonomous navigation, waypoint following |
+| `control2`   | `master_code.py`            | Master control node (steering, throttle, joystick) |
+| `controller` | Utility controllers         | PID control, motor mixing, steering |
+| `gps`        | `gps_fix.py`, `gps_to_xy.py` | GPS data processing, latitude/longitude → odometry |
+
+---
+
+### 7. ROS2 Topics
 
 | Topic                          | Direction | Description | Message Type |
 |--------------------------------|-----------|-------------|--------------|
-| `/enc_auto`                     | Output    | Encoder data for steer | `std_msgs/msg/Float32MultiArray` |
+| `/enc_auto`                     | Output    | Encoder data for steering | `std_msgs/msg/Float32MultiArray` |
 | `/imu`                          | Output    | IMU sensor data | `sensor_msgs/msg/Imu` |
-| `/motor_pwm`                    | Input     | Control wheel RPM and steer (max 128) | `std_msgs/msg/Int32MultiArray` |
+| `/motor_pwm`                    | Input     | Control wheel RPM and steer | `std_msgs/msg/Int32MultiArray` |
 | `/odom`                         | Output    | Rover odometry | `nav_msgs/msg/Odometry` |
 | `/rgbd_camera/left_image_info`  | Output    | Left camera info | `sensor_msgs/msg/CameraInfo` |
 | `/rgbd_camera/left_image_raw`   | Output    | Left camera feed | `sensor_msgs/msg/Image` |
 | `/rgbd_camera/right_image_info` | Output    | Right camera info | `sensor_msgs/msg/CameraInfo` |
 | `/rgbd_camera/right_image_raw`  | Output    | Right camera feed | `sensor_msgs/msg/Image` |
-| `/sim/gps`                      | Output    | GPS data (x → latitude, y → longitude, accuracy 2.5–5 m) | `geometry_msgs/msg/Point` |
+| `/sim/gps`                      | Output    | GPS data | `geometry_msgs/msg/Point` |
 | `/sim/laser_scan`               | Output    | LiDAR scan data | `sensor_msgs/msg/LaserScan` |
 
 ---
@@ -100,6 +158,7 @@ ros2 topic echo <topic_name>
 
 ## Notes
 
-- The bare-metal simulation is ready to run once meshes are unzipped.
-- Optional shader assets enhance the ground and environment visuals but are not required.
-- Make sure all paths remain relative within `sim_assets/` for portability.
+- Bare-metal simulation runs immediately once meshes are unzipped.
+- Optional shader assets enhance visuals but are not required.
+- Keep all paths relative within `sim_assets/` for portability.
+- ROS2 workspace provides autonomous control, master control, GPS processing, and utility controllers.
